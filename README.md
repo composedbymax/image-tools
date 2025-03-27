@@ -1,1 +1,1 @@
-# image-tools
+# image-tools by Max Warren
