@@ -19,9 +19,29 @@
             max-width: 100%;
             border: 1px solid #ddd;
         }
-        input[type="file"] {
+        input[type="file"], button {
             border: 1px solid #ddd;
             padding: 5px;
+            cursor: pointer;
+        }
+        #downloadButton {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            transition-duration: 0.4s;
+        }
+        #downloadButton:hover {
+            background-color: #45a049;
+        }
+        #downloadButton:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -33,6 +53,7 @@
         <label for="toleranceSlider">Tolerance:</label>
         <input type="range" id="toleranceSlider" min="0" max="150" value="50">
         <span id="toleranceValue">50</span>
+        <button id="downloadButton" disabled>Download Processed Image</button>
     </div>
     <canvas id="canvas"></canvas>
     <script>
@@ -42,6 +63,7 @@
         const colorPicker = document.getElementById('colorPicker');
         const toleranceSlider = document.getElementById('toleranceSlider');
         const toleranceValue = document.getElementById('toleranceValue');
+        const downloadButton = document.getElementById('downloadButton');
         let originalImage = null;
         function drawImage() {
             if (!originalImage) return;
@@ -70,6 +92,7 @@
                 }
             }
             ctx.putImageData(imageData, 0, 0);
+            downloadButton.disabled = false;
         }
         toleranceSlider.addEventListener('input', function() {
             toleranceValue.textContent = toleranceSlider.value;
@@ -87,6 +110,16 @@
             reader.readAsDataURL(e.target.files[0]);
         });
         colorPicker.addEventListener('input', drawImage);
+        downloadButton.addEventListener('click', function() {
+            if (!canvas.toDataURL) {
+                alert('Your browser does not support image downloading.');
+                return;
+            }
+            const link = document.createElement('a');
+            link.download = 'color-focus-image.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
     </script>
 </body>
 </html>
