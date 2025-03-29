@@ -66,7 +66,8 @@
             border: 1px solid #ccc;
             margin-right: 10px;
         }
-        .layer-tolerance {
+        .layer-tolerance,
+        .layer-hue {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -106,7 +107,7 @@
     </style>
 </head>
 <body>
-    <h1>Multi-Color Focus Filter</h1>
+    <h1>Multi-Color Focus Filter with Hue Rotation</h1>
     <div class="controls">
         <input type="file" id="imageInput" accept="image/*">
         <button id="downloadButton" disabled>Download Processed Image</button>
@@ -123,6 +124,11 @@
                 <input type="range" id="newLayerTolerance" min="0" max="150" value="50">
                 <span id="newToleranceValue">50</span>
             </div>
+            <div class="layer-hue">
+                <label for="newLayerHue">Hue:</label>
+                <input type="range" id="newLayerHue" min="0" max="360" value="0">
+                <span id="newHueValue">0</span>
+            </div>
             <button id="addLayerButton">Add Color Layer</button>
         </div>
     </div>
@@ -130,12 +136,14 @@
     <canvas id="canvas"></canvas>
     <script>
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const imageInput = document.getElementById('imageInput');
         const downloadButton = document.getElementById('downloadButton');
         const newLayerColor = document.getElementById('newLayerColor');
         const newLayerTolerance = document.getElementById('newLayerTolerance');
         const newToleranceValue = document.getElementById('newToleranceValue');
+        const newLayerHue = document.getElementById('newLayerHue');
+        const newHueValue = document.getElementById('newHueValue');
         const addLayerButton = document.getElementById('addLayerButton');
         const layersList = document.getElementById('layersList');
         let originalImage = null;
@@ -144,16 +152,21 @@
         newLayerTolerance.addEventListener('input', function() {
             newToleranceValue.textContent = this.value;
         });
+        newLayerHue.addEventListener('input', function() {
+            newHueValue.textContent = this.value;
+        });
         addLayerButton.addEventListener('click', function() {
             const color = newLayerColor.value;
             const tolerance = parseInt(newLayerTolerance.value);
+            const hue = parseInt(newLayerHue.value);
             const layer = {
                 id: 'layer-' + layerIdCounter++,
                 color: color,
                 r: parseInt(color.substr(1, 2), 16),
                 g: parseInt(color.substr(3, 2), 16),
                 b: parseInt(color.substr(5, 2), 16),
-                tolerance: tolerance
+                tolerance: tolerance,
+                hue: hue
             };
             colorLayers.push(layer);
             updateLayersList();
@@ -186,12 +199,20 @@
                     <input type="range" id="${layer.id}-tolerance" min="0" max="150" value="${layer.tolerance}">
                     <span id="${layer.id}-tolerance-value">${layer.tolerance}</span>
                 `;
+                const hueControl = document.createElement('div');
+                hueControl.className = 'layer-hue';
+                hueControl.innerHTML = `
+                    <label for="${layer.id}-hue">Hue:</label>
+                    <input type="range" id="${layer.id}-hue" min="0" max="360" value="${layer.hue}">
+                    <span id="${layer.id}-hue-value">${layer.hue}</span>
+                `;
                 const removeButton = document.createElement('div');
                 removeButton.className = 'layer-remove';
                 removeButton.innerHTML = '✕';
                 removeButton.title = 'Remove this color layer';
                 controls.appendChild(colorPicker);
                 controls.appendChild(toleranceControl);
+                controls.appendChild(hueControl);
                 layerElement.appendChild(preview);
                 layerElement.appendChild(controls);
                 layerElement.appendChild(removeButton);
@@ -199,6 +220,8 @@
                 const colorInput = document.getElementById(`${layer.id}-color`);
                 const toleranceInput = document.getElementById(`${layer.id}-tolerance`);
                 const toleranceValueSpan = document.getElementById(`${layer.id}-tolerance-value`);
+                const hueInput = document.getElementById(`${layer.id}-hue`);
+                const hueValueSpan = document.getElementById(`${layer.id}-hue-value`);
                 colorInput.addEventListener('input', function() {
                     updateLayerColor(layer.id, this.value);
                     preview.style.backgroundColor = this.value;
@@ -206,6 +229,10 @@
                 toleranceInput.addEventListener('input', function() {
                     updateLayerTolerance(layer.id, parseInt(this.value));
                     toleranceValueSpan.textContent = this.value;
+                });
+                hueInput.addEventListener('input', function() {
+                    updateLayerHue(layer.id, parseInt(this.value));
+                    hueValueSpan.textContent = this.value;
                 });
                 removeButton.addEventListener('click', function() {
                     removeLayer(layer.id);
@@ -229,6 +256,13 @@
                 processImage();
             }
         }
+        function updateLayerHue(layerId, newHue) {
+            const layerIndex = colorLayers.findIndex(l => l.id === layerId);
+            if (layerIndex !== -1) {
+                colorLayers[layerIndex].hue = newHue;
+                processImage();
+            }
+        }
         function removeLayer(layerId) {
             const layerIndex = colorLayers.findIndex(l => l.id === layerId);
             if (layerIndex !== -1) {
@@ -236,6 +270,47 @@
                 updateLayersList();
                 processImage();
             }
+        }
+        function rgbToHsl(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+            if(max === min) {
+                h = s = 0;
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch(max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h *= 60;
+            }
+            return [h, s, l];
+        }
+        function hslToRgb(h, s, l) {
+            let r, g, b;
+            h /= 360;
+            if(s === 0) {
+                r = g = b = l;
+            } else {
+                const hue2rgb = function(p, q, t) {
+                    if(t < 0) t += 1;
+                    if(t > 1) t -= 1;
+                    if(t < 1/6) return p + (q - p) * 6 * t;
+                    if(t < 1/2) return q;
+                    if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                    return p;
+                }
+                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                const p = 2 * l - q;
+                r = hue2rgb(p, q, h + 1/3);
+                g = hue2rgb(p, q, h);
+                b = hue2rgb(p, q, h - 1/3);
+            }
+            return [r * 255, g * 255, b * 255];
         }
         function processImage() {
             if (!originalImage) return;
@@ -248,7 +323,7 @@
                 const pixelR = data[i];
                 const pixelG = data[i + 1];
                 const pixelB = data[i + 2];
-                let keepColor = false;
+                let matched = false;
                 for (const layer of colorLayers) {
                     const distance = Math.sqrt(
                         Math.pow(pixelR - layer.r, 2) +
@@ -256,11 +331,17 @@
                         Math.pow(pixelB - layer.b, 2)
                     );
                     if (distance <= layer.tolerance) {
-                        keepColor = true;
+                        let [h, s, l] = rgbToHsl(pixelR, pixelG, pixelB);
+                        h = (h + layer.hue) % 360;
+                        const [nr, ng, nb] = hslToRgb(h, s, l);
+                        data[i] = nr;
+                        data[i + 1] = ng;
+                        data[i + 2] = nb;
+                        matched = true;
                         break;
                     }
                 }
-                if (!keepColor) {
+                if (!matched) {
                     const gray = 0.299 * pixelR + 0.587 * pixelG + 0.114 * pixelB;
                     data[i] = data[i + 1] = data[i + 2] = gray;
                 }
