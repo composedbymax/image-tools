@@ -1,0 +1,54 @@
+<!-- Created by Max Warren -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="convert pictures to SVG files">
+    <title>MAX</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/css/slider.css">
+</head>
+<body>
+    <div class="container">
+        <div id="dropZone">
+            Drag and drop an image or click to select
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+        <div class="controls">
+            <label>Edge Sensitivity: 
+                <input type="range" id="edgeSensitivity" min="1" max="20" value="10">
+            </label>
+            <label>Block Size: 
+                <input type="range" id="blockSize" min="2" max="20" value="10">
+            </label>
+        </div>
+        <div class="preview-container">
+            <div class="preview-box">
+                <div class="preview-header">Original Image</div>
+                <div class="preview-content" id="originalPreview">
+                    <canvas id="originalCanvas"></canvas>
+                    <div class="disabled-overlay" id="originalLoadingOverlay">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="preview-box">
+                <div class="preview-header">SVG Preview</div>
+                <div class="preview-content" id="svgPreviewContainer">
+                    <img id="svgPreview" alt="SVG Preview">
+                    <div class="disabled-overlay" id="svgLoadingOverlay">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <textarea id="svgCode" readonly placeholder="SVG output will appear here"></textarea>
+        <div>
+            <button id="copyBtn" class="btn" disabled>Copy SVG</button>
+            <button id="downloadBtn" class="btn" disabled>Download SVG</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
