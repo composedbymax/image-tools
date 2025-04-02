@@ -1,4 +1,4 @@
-<!-- Created by Max Warren -->
+<!-- Created by Max Warren - updated -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,6 +10,12 @@
       max-width: 800px;
       margin: 20px auto;
       padding: 0 20px;
+      border: 2px dashed transparent;
+      transition: border-color 0.3s ease;
+    }
+    body.drag-over {
+      border-color: #2196F3;
+      background-color: #f0f8ff;
     }
     .controls {
       margin: 20px 0;
@@ -20,7 +26,10 @@
     }
     canvas {
       max-width: 100%;
+      max-height: 400px;
       border: 1px solid #ddd;
+      display: block;
+      margin: 20px auto;
     }
     input[type="file"], button {
       border: 1px solid #ddd;
@@ -32,14 +41,10 @@
       color: white;
       border: none;
       padding: 10px 15px;
-      text-align: center;
-      text-decoration: none;
-      display: inline-block;
       font-size: 16px;
-      margin: 4px 2px;
-      transition-duration: 0.4s;
+      transition: background-color 0.4s;
     }
-    #downloadButton:hover {
+    #downloadButton:hover:not(:disabled) {
       background-color: #45a049;
     }
     #downloadButton:disabled {
@@ -51,7 +56,7 @@
       align-items: center;
       padding: 10px;
       margin-bottom: 10px;
-      background-color: #f5f5f5;
+      background: #f5f5f5;
       border-radius: 4px;
       border: 1px solid #ddd;
     }
@@ -84,7 +89,7 @@
     #addLayerSection {
       margin: 20px 0;
       padding: 15px;
-      background-color: #eaf5ff;
+      background: #eaf5ff;
       border-radius: 4px;
       border: 1px solid #c5e1ff;
     }
@@ -93,12 +98,8 @@
       color: white;
       border: none;
       padding: 8px 12px;
-      text-align: center;
-      text-decoration: none;
-      display: inline-block;
       font-size: 14px;
-      margin: 4px 2px;
-      transition-duration: 0.4s;
+      transition: background-color 0.4s;
     }
     #addLayerButton:hover {
       background-color: #0b7dda;
@@ -166,12 +167,12 @@
       const hue = parseInt(newLayerHue.value);
       const layer = {
         id: 'layer-' + layerIdCounter++,
-        color: color,
+        color,
         r: parseInt(color.substr(1, 2), 16),
         g: parseInt(color.substr(3, 2), 16),
         b: parseInt(color.substr(5, 2), 16),
-        tolerance: tolerance,
-        hue: hue
+        tolerance,
+        hue
       };
       colorLayers.push(layer);
       updateLayersList();
@@ -222,22 +223,17 @@
         layerElement.appendChild(controls);
         layerElement.appendChild(removeButton);
         layersList.appendChild(layerElement);
-        const colorInput = document.getElementById(`${layer.id}-color`);
-        const toleranceInput = document.getElementById(`${layer.id}-tolerance`);
-        const toleranceValueSpan = document.getElementById(`${layer.id}-tolerance-value`);
-        const hueInput = document.getElementById(`${layer.id}-hue`);
-        const hueValueSpan = document.getElementById(`${layer.id}-hue-value`);
-        colorInput.addEventListener('input', function() {
+        document.getElementById(`${layer.id}-color`).addEventListener('input', function() {
           updateLayerColor(layer.id, this.value);
           preview.style.backgroundColor = this.value;
         });
-        toleranceInput.addEventListener('input', function() {
+        document.getElementById(`${layer.id}-tolerance`).addEventListener('input', function() {
           updateLayerTolerance(layer.id, parseInt(this.value));
-          toleranceValueSpan.textContent = this.value;
+          document.getElementById(`${layer.id}-tolerance-value`).textContent = this.value;
         });
-        hueInput.addEventListener('input', function() {
+        document.getElementById(`${layer.id}-hue`).addEventListener('input', function() {
           updateLayerHue(layer.id, parseInt(this.value));
-          hueValueSpan.textContent = this.value;
+          document.getElementById(`${layer.id}-hue-value`).textContent = this.value;
         });
         removeButton.addEventListener('click', function() {
           removeLayer(layer.id);
@@ -245,36 +241,33 @@
       });
     }
     function updateLayerColor(layerId, newColor) {
-      const layerIndex = colorLayers.findIndex(l => l.id === layerId);
-      if (layerIndex !== -1) {
-        colorLayers[layerIndex].color = newColor;
-        colorLayers[layerIndex].r = parseInt(newColor.substr(1, 2), 16);
-        colorLayers[layerIndex].g = parseInt(newColor.substr(3, 2), 16);
-        colorLayers[layerIndex].b = parseInt(newColor.substr(5, 2), 16);
+      const layer = colorLayers.find(l => l.id === layerId);
+      if (layer) {
+        layer.color = newColor;
+        layer.r = parseInt(newColor.substr(1, 2), 16);
+        layer.g = parseInt(newColor.substr(3, 2), 16);
+        layer.b = parseInt(newColor.substr(5, 2), 16);
         processImage();
       }
     }
     function updateLayerTolerance(layerId, newTolerance) {
-      const layerIndex = colorLayers.findIndex(l => l.id === layerId);
-      if (layerIndex !== -1) {
-        colorLayers[layerIndex].tolerance = newTolerance;
+      const layer = colorLayers.find(l => l.id === layerId);
+      if (layer) {
+        layer.tolerance = newTolerance;
         processImage();
       }
     }
     function updateLayerHue(layerId, newHue) {
-      const layerIndex = colorLayers.findIndex(l => l.id === layerId);
-      if (layerIndex !== -1) {
-        colorLayers[layerIndex].hue = newHue;
+      const layer = colorLayers.find(l => l.id === layerId);
+      if (layer) {
+        layer.hue = newHue;
         processImage();
       }
     }
     function removeLayer(layerId) {
-      const layerIndex = colorLayers.findIndex(l => l.id === layerId);
-      if (layerIndex !== -1) {
-        colorLayers.splice(layerIndex, 1);
-        updateLayersList();
-        processImage();
-      }
+      colorLayers = colorLayers.filter(l => l.id !== layerId);
+      updateLayersList();
+      processImage();
     }
     function initWebGL() {
       gl = canvas.getContext('webgl');
@@ -342,7 +335,6 @@
           }
           return vec3(r, g, b);
         }
-
         void main(){
           vec4 texColor = texture2D(u_image, v_texCoord);
           vec3 color = texColor.rgb;
@@ -419,7 +411,7 @@
       canvas.height = originalImage.height;
       gl.viewport(0, 0, canvas.width, canvas.height);
       if(!texture){
-      texture = gl.createTexture();
+        texture = gl.createTexture();
       }
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -459,9 +451,7 @@
       const reader = new FileReader();
       reader.onload = function(event) {
         originalImage = new Image();
-        originalImage.onload = function() {
-          processImage();
-        };
+        originalImage.onload = processImage;
         originalImage.src = event.target.result;
       };
       reader.readAsDataURL(e.target.files[0]);
@@ -471,6 +461,23 @@
       link.download = 'multi-color-focus.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
+    });
+    document.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      document.body.classList.add('drag-over');
+    });
+    document.addEventListener('dragleave', function(e) {
+      e.preventDefault();
+      document.body.classList.remove('drag-over');
+    });
+    document.addEventListener('drop', function(e) {
+      e.preventDefault();
+      document.body.classList.remove('drag-over');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        imageInput.files = e.dataTransfer.files;
+        const event = new Event('change');
+        imageInput.dispatchEvent(event);
+      }
     });
     initWebGL();
     updateLayersList();
