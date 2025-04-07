@@ -6,6 +6,8 @@ const canvas = document.getElementById('canvas'),
         newToleranceValue = document.getElementById('newToleranceValue'),
         newLayerHue = document.getElementById('newLayerHue'),
         newHueValue = document.getElementById('newHueValue'),
+        newLayerUnify = document.getElementById('newLayerUnify'),
+        newUnifyValue = document.getElementById('newUnifyValue'),
         addLayerButton = document.getElementById('addLayerButton'),
         layersList = document.getElementById('layersList'),
         sidePanel = document.getElementById('sidePanel'),
@@ -26,14 +28,16 @@ sidePanel.classList.add('open');
 panelToggle.textContent = '›';
 newLayerTolerance.oninput = () => newToleranceValue.textContent = newLayerTolerance.value;
 newLayerHue.oninput = () => newHueValue.textContent = newLayerHue.value;
+newLayerUnify.oninput = () => newUnifyValue.textContent = newLayerUnify.value;
 addLayerButton.onclick = () => {
     const color = newLayerColor.value,
         tolerance = +newLayerTolerance.value,
         hue = +newLayerHue.value,
+        unify = +newLayerUnify.value,
         r = parseInt(color.slice(1,3),16),
         g = parseInt(color.slice(3,5),16),
         b = parseInt(color.slice(5,7),16);
-    colorLayers.push({ id: 'layer-' + idCounter++, color, tolerance, hue, r, g, b });
+    colorLayers.push({ id: 'layer-' + idCounter++, color, tolerance, hue, unify, r, g, b });
     updateLayersList();
     processImage();
 };
@@ -55,6 +59,11 @@ layersList.addEventListener('input', e => {
     }
     if(target.name === 'hue') {
         layer.hue = +target.value;
+        const span = target.parentElement.querySelector('span');
+        if (span) span.textContent = target.value;
+    }
+    if(target.name === 'unify') {
+        layer.unify = +target.value;
         const span = target.parentElement.querySelector('span');
         if (span) span.textContent = target.value;
     }
@@ -94,6 +103,11 @@ function updateLayersList() {
             <input type="range" name="hue" min="0" max="360" value="${layer.hue}">
             <span>${layer.hue}</span>
             </div>
+            <div>
+            <label>Unify: </label>
+            <input type="range" name="unify" min="0" max="100" value="${layer.unify}">
+            <span>${layer.unify}</span>
+            </div>
         </div>
         <div class="layer-remove" title="Remove this layer">✕</div>
         </div>
@@ -116,6 +130,7 @@ function initWebGL() {
     uniform vec3 u_layerColors[MAX_LAYERS];
     uniform float u_layerTolerances[MAX_LAYERS];
     uniform float u_layerHues[MAX_LAYERS];
+    uniform float u_layerUnify[MAX_LAYERS];
     uniform int u_numLayers;
     vec3 rgb2hsl(vec3 c){ float maxc = max(max(c.r,c.g),c.b), minc = min(min(c.r,c.g),c.b), h=0.0, s=0.0, l=(maxc+minc)/2.0;
         if(maxc!=minc){ float d = maxc-minc; s = l>0.5? d/(2.0-maxc-minc): d/(maxc+minc);
@@ -128,8 +143,15 @@ function initWebGL() {
         vec3 color = tex.rgb, outColor = vec3(0.0); bool matched=false;
         for(int i=0;i<MAX_LAYERS;i++){ if(i>=u_numLayers) break;
         if(length(color-u_layerColors[i])<=u_layerTolerances[i]){
-            vec3 hsl = rgb2hsl(color); hsl.x = mod(hsl.x+u_layerHues[i],1.0);
-            outColor = hsl2rgb(hsl); matched=true; break;
+            vec3 hsl = rgb2hsl(color); 
+            hsl.x = mod(hsl.x+u_layerHues[i],1.0);
+            vec3 targetHsl = rgb2hsl(u_layerColors[i]);
+            float unifyAmount = u_layerUnify[i] / 100.0;
+            hsl.y = mix(hsl.y, targetHsl.y, unifyAmount);
+            hsl.z = mix(hsl.z, targetHsl.z, unifyAmount);
+            outColor = hsl2rgb(hsl);
+            outColor = mix(outColor, u_layerColors[i], unifyAmount);
+            matched=true; break;
         }
         }
         if(!matched){ float gray = dot(color, vec3(0.299,0.587,0.114)); outColor = vec3(gray); }
@@ -142,7 +164,7 @@ function initWebGL() {
     gl.attachShader(program, vsShader); gl.attachShader(program, fsShader); gl.linkProgram(program);
     if(!gl.getProgramParameter(program, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(program)); return; }
     gl.useProgram(program);
-    ['u_image','u_resolution','u_layerColors','u_layerTolerances','u_layerHues','u_numLayers']
+    ['u_image','u_resolution','u_layerColors','u_layerTolerances','u_layerHues','u_layerUnify','u_numLayers']
     .forEach(n=> uLoc[n]=gl.getUniformLocation(program,n));
     posBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
@@ -168,18 +190,21 @@ function processImage() {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.uniform1i(uLoc.u_image, 0);
     gl.uniform2f(uLoc.u_resolution, canvas.width, canvas.height);
-    const cols = [], tols = [], hues = [];
+    const cols = [], tols = [], hues = [], unify = [];
     colorLayers.slice(0, MAX_LAYERS).forEach(l => {
-    cols.push(l.r/255, l.g/255, l.b/255);
-    tols.push(l.tolerance/255);
-    hues.push(l.hue/360);
+        cols.push(l.r/255, l.g/255, l.b/255);
+        tols.push(l.tolerance/255);
+        hues.push(l.hue/360);
+        unify.push(l.unify || 0);
     });
     while(cols.length < MAX_LAYERS*3) cols.push(0,0,0);
     while(tols.length < MAX_LAYERS) tols.push(0);
     while(hues.length < MAX_LAYERS) hues.push(0);
+    while(unify.length < MAX_LAYERS) unify.push(0);
     gl.uniform3fv(uLoc.u_layerColors, new Float32Array(cols));
     gl.uniform1fv(uLoc.u_layerTolerances, new Float32Array(tols));
     gl.uniform1fv(uLoc.u_layerHues, new Float32Array(hues));
+    gl.uniform1fv(uLoc.u_layerUnify, new Float32Array(unify));
     gl.uniform1i(uLoc.u_numLayers, Math.min(colorLayers.length, MAX_LAYERS));
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     downloadButton.disabled = false;
