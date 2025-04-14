@@ -7,7 +7,7 @@
   <meta name="description" content="Upload image , select color and focus it">
   <title>MAX</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="/css/slider.css">
+  <link rel="stylesheet" href="../slider.css">
 </head>
 <body>
   <div class="main-container">
@@ -72,8 +72,21 @@
           <img id="originalImagePreview" class="original-image-preview">
         </div>
       </div>
+      <div id="eraserSection" class="form-group">
+        <label class="toggle-label">
+          Eraser Mode
+          <input type="checkbox" id="eraserToggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="brushSizeSection" class="form-group" style="display:none;">
+        <label>
+          Brush Size: <span id="brushSizeValue">20</span>px
+        </label>
+        <input type="range" id="brushSize" min="5" max="100" value="20">
+      </div>
     </div>
   </div>
-  <script src=script.js></script>
+  <script src="script.js"></script>
 </body>
 </html>
